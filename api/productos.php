@@ -1,7 +1,8 @@
 <?php
 $allowed_origins = [
-    "http://localhost:5173",                
-    "https://tecnomax-ecommerce-b7ut.vercel.app" 
+    "http://localhost:5173",
+    "https://tecnomax-ecommerce-b7ut.vercel.app",
+    "https://tecnomax.netlify.app" 
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
