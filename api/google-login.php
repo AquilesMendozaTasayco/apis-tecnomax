@@ -1,5 +1,6 @@
 <?php
-// --- CONFIGURACIÓN DE CORS ---
+require_once "../config/db.php";
+
 $allowed_origins = [
     "http://localhost:5173",
     "https://tecnomax-ecommerce.vercel.app",
@@ -29,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once "db.php";
+
 
 $input = file_get_contents("php://input");
 $data = json_decode($input, true);
