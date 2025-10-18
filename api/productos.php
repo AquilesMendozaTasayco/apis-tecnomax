@@ -10,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once "../config/db.php";
+require_once "../config/cloudinary.php"; // 👈 agregado para usar Cloudinary
+
+use Cloudinary\Api\Upload\UploadApi;
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -35,61 +38,68 @@ case 'GET':
         }
         echo json_encode($productos);
     } else {
-            $sql = "SELECT p.id_producto, p.nombre, p.descripcion, p.precio, p.stock, 
-                           p.imagen_principal, c.nombre AS categoria, p.estado
-                    FROM productos p
-                    LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
-                    WHERE p.estado != 'eliminado'";
-            $result = $conexion->query($sql);
-            $productos = [];
-            while ($row = $result->fetch_assoc()) {
-                $productos[] = $row;
-            }
-            echo json_encode($productos);
+        $sql = "SELECT p.id_producto, p.nombre, p.descripcion, p.precio, p.stock, 
+                       p.imagen_principal, c.nombre AS categoria, p.estado
+                FROM productos p
+                LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
+                WHERE p.estado != 'eliminado'";
+        $result = $conexion->query($sql);
+        $productos = [];
+        while ($row = $result->fetch_assoc()) {
+            $productos[] = $row;
         }
-        break;
+        echo json_encode($productos);
+    }
+    break;
 
-    case 'POST':
-        $nombre = $conexion->real_escape_string($_POST['nombre']);
-        $descripcion = $conexion->real_escape_string($_POST['descripcion']);
-        $precio = floatval($_POST['precio']);
-        $stock = intval($_POST['stock']);
-        $id_categoria = intval($_POST['id_categoria']);
+case 'POST':
+    $nombre = $conexion->real_escape_string($_POST['nombre']);
+    $descripcion = $conexion->real_escape_string($_POST['descripcion']);
+    $precio = floatval($_POST['precio']);
+    $stock = intval($_POST['stock']);
+    $id_categoria = intval($_POST['id_categoria']);
 
-        $imagen = null;
-        if (isset($_FILES['imagen_principal']) && $_FILES['imagen_principal']['error'] == 0) {
-            $nombreArchivo = time() . "_" . basename($_FILES['imagen_principal']['name']);
-            $rutaDestino = "../uploads/productos/" . $nombreArchivo;
-            if (move_uploaded_file($_FILES['imagen_principal']['tmp_name'], $rutaDestino)) {
-                $imagen = $nombreArchivo;
-            }
-        }
+    $imagenUrl = null;
 
-        $sql = "INSERT INTO productos (nombre, descripcion, precio, stock, id_categoria, imagen_principal, estado) 
-                VALUES ('$nombre','$descripcion',$precio,$stock,$id_categoria,'$imagen','activo')";
-
-        echo $conexion->query($sql) ? 
-            json_encode(["success" => true, "mensaje" => "Producto creado"]) : 
-            json_encode(["success" => false, "error" => $conexion->error]);
-        break;
-
-    case 'PUT':
-        echo json_encode(["error" => "Para actualizar productos con imagen usa PATCH o un endpoint separado"]);
-        break;
-
-    case 'DELETE':
-        if (!isset($_GET['id'])) {
-            echo json_encode(["error" => "ID requerido"]);
+    // 👇 NUEVO: subir a Cloudinary
+    if (isset($_FILES['imagen_principal']) && $_FILES['imagen_principal']['error'] == 0) {
+        $tmpPath = $_FILES['imagen_principal']['tmp_name'];
+        try {
+            $upload = (new UploadApi())->upload($tmpPath, [
+                'folder' => 'productos' // crea carpeta "productos" en Cloudinary
+            ]);
+            $imagenUrl = $upload['secure_url']; // URL accesible públicamente
+        } catch (Exception $e) {
+            echo json_encode(["success" => false, "error" => "Error al subir imagen: " . $e->getMessage()]);
             exit;
         }
-        $id = intval($_GET['id']);
-        $sql = "UPDATE productos SET estado='eliminado' WHERE id_producto=$id";
-        echo $conexion->query($sql) ? 
-            json_encode(["mensaje" => "Producto eliminado (soft delete)"]) : 
-            json_encode(["error" => $conexion->error]);
-        break;
+    }
 
-    default:
-        echo json_encode(["error" => "Método no permitido"]);
+    $sql = "INSERT INTO productos (nombre, descripcion, precio, stock, id_categoria, imagen_principal, estado) 
+            VALUES ('$nombre','$descripcion',$precio,$stock,$id_categoria,'$imagenUrl','activo')";
+
+    echo $conexion->query($sql) ? 
+        json_encode(["success" => true, "mensaje" => "Producto creado", "imagen_url" => $imagenUrl]) : 
+        json_encode(["success" => false, "error" => $conexion->error]);
+    break;
+
+case 'PUT':
+    echo json_encode(["error" => "Para actualizar productos con imagen usa PATCH o un endpoint separado"]);
+    break;
+
+case 'DELETE':
+    if (!isset($_GET['id'])) {
+        echo json_encode(["error" => "ID requerido"]);
+        exit;
+    }
+    $id = intval($_GET['id']);
+    $sql = "UPDATE productos SET estado='eliminado' WHERE id_producto=$id";
+    echo $conexion->query($sql) ? 
+        json_encode(["mensaje" => "Producto eliminado (soft delete)"]) : 
+        json_encode(["error" => $conexion->error]);
+    break;
+
+default:
+    echo json_encode(["error" => "Método no permitido"]);
 }
 ?>

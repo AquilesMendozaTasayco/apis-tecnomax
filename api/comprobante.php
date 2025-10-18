@@ -10,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once "../config/db.php";
+require_once "../config/cloudinary.php"; // 👈 agregado
+
+use Cloudinary\Api\Upload\UploadApi;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_pedido = $_POST['id_pedido'] ?? null;
@@ -21,26 +24,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $directorio = "../uploads/comprobantes/";
-    if (!file_exists($directorio)) {
-        mkdir($directorio, 0777, true);
-    }
+    try {
+        // 👇 Subir comprobante a Cloudinary
+        $upload = (new UploadApi())->upload($archivo["tmp_name"], [
+            'folder' => 'comprobantes'
+        ]);
+        $urlComprobante = $upload['secure_url'];
 
-    $nombreArchivo = time() . "_" . basename($archivo["name"]);
-    $rutaDestino = $directorio . $nombreArchivo;
-
-    if (move_uploaded_file($archivo["tmp_name"], $rutaDestino)) {
         $stmt = $conexion->prepare("INSERT INTO comprobantes (id_pedido, monto, imagen) VALUES (?, ?, ?)");
-        $stmt->bind_param("ids", $id_pedido, $monto, $nombreArchivo);
+        $stmt->bind_param("ids", $id_pedido, $monto, $urlComprobante);
 
         if ($stmt->execute()) {
-            echo json_encode(["success" => true, "mensaje" => "Comprobante subido correctamente"]);
+            echo json_encode(["success" => true, "mensaje" => "Comprobante subido correctamente", "url" => $urlComprobante]);
         } else {
             echo json_encode(["success" => false, "mensaje" => "Error SQL: " . $stmt->error]);
         }
         $stmt->close();
-    } else {
-        echo json_encode(["success" => false, "mensaje" => "Error al mover el archivo"]);
+
+    } catch (Exception $e) {
+        echo json_encode(["success" => false, "mensaje" => "Error al subir comprobante: " . $e->getMessage()]);
     }
 }
 ?>

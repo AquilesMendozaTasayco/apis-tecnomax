@@ -10,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once "../config/db.php";
+require_once "../config/cloudinary.php"; // 👈 Importante
+
+use Cloudinary\Api\Upload\UploadApi;
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -37,7 +40,7 @@ switch ($method) {
         break;
 
     case 'POST':
-        // ⚡ LOGIN
+        // LOGIN
         if (isset($_GET['login'])) {
             $data = json_decode(file_get_contents("php://input"), true);
 
@@ -51,20 +54,16 @@ switch ($method) {
                 $usuario = $result->fetch_assoc();
 
                 if (password_verify($password, $usuario['password'])) {
-                    unset($usuario['password']); 
-                    echo json_encode([
-                        "success" => true,
-                        "mensaje" => "Login exitoso",
-                        "usuario" => $usuario
-                    ]);
+                    unset($usuario['password']);
+                    echo json_encode(["success" => true, "mensaje" => "Login exitoso", "usuario" => $usuario]);
                 } else {
                     echo json_encode(["success" => false, "error" => "Contraseña incorrecta"]);
                 }
             } else {
                 echo json_encode(["success" => false, "error" => "Usuario no encontrado"]);
             }
-        } 
-        else {
+        } else {
+            // REGISTRO DE USUARIO
             $nombre = $conexion->real_escape_string($_POST['nombre']);
             $apellido = $conexion->real_escape_string($_POST['apellido']);
             $correo = $conexion->real_escape_string($_POST['correo']);
@@ -73,27 +72,29 @@ switch ($method) {
             $rol = isset($_POST['rol']) ? $conexion->real_escape_string($_POST['rol']) : 'cliente';
             $estado = isset($_POST['estado']) ? $conexion->real_escape_string($_POST['estado']) : 'activo';
 
-            $imagen_perfil = "default.png";
+            $imagenUrl = "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg"; // valor por defecto
 
+            // 👇 Subir imagen a Cloudinary (si existe)
             if (isset($_FILES['imagen_perfil']) && $_FILES['imagen_perfil']['error'] == 0) {
-                $nombreArchivo = time() . "_" . basename($_FILES['imagen_perfil']['name']);
-                $rutaDestino = "../uploads/perfiles/" . $nombreArchivo;
-                if (move_uploaded_file($_FILES['imagen_perfil']['tmp_name'], $rutaDestino)) {
-                    $imagen_perfil = $nombreArchivo;
+                $tmpPath = $_FILES['imagen_perfil']['tmp_name'];
+                try {
+                    $upload = (new UploadApi())->upload($tmpPath, [
+                        'folder' => 'perfiles' // carpeta en Cloudinary
+                    ]);
+                    $imagenUrl = $upload['secure_url'];
+                } catch (Exception $e) {
+                    echo json_encode(["success" => false, "error" => "Error al subir imagen: " . $e->getMessage()]);
+                    exit;
                 }
             }
 
             $sql = "INSERT INTO usuarios (nombre, apellido, correo, telefono, imagen_perfil, password, rol, estado) 
-                    VALUES ('$nombre','$apellido','$correo','$telefono','$imagen_perfil','$password','$rol','$estado')";
+                    VALUES ('$nombre','$apellido','$correo','$telefono','$imagenUrl','$password','$rol','$estado')";
 
-            echo $conexion->query($sql) ?
-                json_encode(["success" => true, "mensaje" => "Usuario registrado"]) :
-                json_encode(["success" => false, "error" => $conexion->error]);
+            echo $conexion->query($sql)
+                ? json_encode(["success" => true, "mensaje" => "Usuario registrado", "imagen_url" => $imagenUrl])
+                : json_encode(["success" => false, "error" => $conexion->error]);
         }
-        break;
-
-    case 'PUT':
-        echo json_encode(["error" => "Para actualizar usuarios con imagen usa PATCH o un endpoint separado"]);
         break;
 
     case 'DELETE':
@@ -103,9 +104,9 @@ switch ($method) {
         }
         $id = intval($_GET['id']);
         $sql = "UPDATE usuarios SET estado='eliminado' WHERE id_usuario=$id";
-        echo $conexion->query($sql) ?
-            json_encode(["mensaje" => "Usuario eliminado (soft delete)"]) :
-            json_encode(["error" => $conexion->error]);
+        echo $conexion->query($sql)
+            ? json_encode(["mensaje" => "Usuario eliminado (soft delete)"])
+            : json_encode(["error" => $conexion->error]);
         break;
 
     default:
