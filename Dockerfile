@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y unzip curl \
 # Copiar configuración PHP personalizada
 COPY php.ini /usr/local/etc/php/php.ini
 
-# 📦 Copiar todos los archivos del proyecto (incluyendo composer.json)
+# 📦 Copiar los archivos del proyecto (sin vendor)
 COPY . /var/www/html
 
 # Instalar Composer y dependencias del proyecto
 RUN curl -sS https://getcomposer.org/installer | php \
+    && rm -rf vendor \
     && php composer.phar install --no-interaction --prefer-dist
 
 # Dar permisos adecuados a los archivos
