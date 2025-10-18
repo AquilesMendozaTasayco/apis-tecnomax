@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y unzip curl \
 # Copiar los archivos del proyecto al contenedor
 COPY . .
 
-# Instalar Composer y las dependencias del proyecto
-RUN curl -sS https://getcomposer.org/installer | php \
-    && php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+# Instalar Composer y dependencias del proyecto
+RUN rm -rf vendor composer.lock \
+    && curl -sS https://getcomposer.org/installer | php \
+    && php composer.phar install --no-interaction --prefer-dist
 
 # Dar permisos adecuados a los archivos
 RUN chown -R www-data:www-data /var/www/html
