@@ -15,29 +15,31 @@ require_once "../config/cloudinary.php";
 use Cloudinary\Api\Upload\UploadApi;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     $id_pedido = $_POST['id_pedido'] ?? null;
     $monto = $_POST['monto'] ?? null;
-if (!$id_pedido || !$archivo || $archivo['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode([
-        "success" => false,
-        "mensaje" => "Archivo temporal no disponible o inválido",
-        "debug" => $_FILES
-    ]);
-    exit;
-}
+    $archivo = $_FILES['comprobante'] ?? null; // ✅ FALTABA ESTA LÍNEA
 
+    if (!$id_pedido || !$archivo || $archivo['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode([
+            "success" => false,
+            "mensaje" => "Archivo temporal no disponible o inválido",
+            "debug" => $_FILES
+        ]);
+        exit;
+    }
 
     try {
-        // Verificamos si hay archivo temporal
+        // ✅ Verificar que el archivo temporal existe
         if (empty($archivo["tmp_name"]) || !file_exists($archivo["tmp_name"])) {
             throw new Exception("Archivo temporal no disponible");
         }
 
-        // ✅ Leer el archivo y convertir a base64 (evita error "Path cannot be empty" en Render)
+        // ✅ Leer el archivo y convertir a base64
         $contenido = file_get_contents($archivo["tmp_name"]);
         $base64 = "data:" . $archivo["type"] . ";base64," . base64_encode($contenido);
 
-        // ✅ Subir a Cloudinary desde base64
+        // ✅ Subir a Cloudinary
         $upload = (new UploadApi())->upload($base64, [
             'folder' => 'comprobantes'
         ]);
