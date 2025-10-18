@@ -1,5 +1,13 @@
 <?php
-header("Access-Control-Allow-Origin: http://localhost:5173");
+$allowed_origins = [
+    "http://localhost:5173",                
+    "https://tecnomax-ecommerce-b7ut.vercel.app" 
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+}
+
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -18,8 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $id_pedido = $_POST['id_pedido'] ?? null;
     $monto = $_POST['monto'] ?? null;
-    $archivo = $_FILES['comprobante'] ?? null; // ✅ FALTABA ESTA LÍNEA
-
+    $archivo = $_FILES['comprobante'] ?? null; 
     if (!$id_pedido || !$archivo || $archivo['error'] !== UPLOAD_ERR_OK) {
         echo json_encode([
             "success" => false,
@@ -30,23 +37,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // ✅ Verificar que el archivo temporal existe
         if (empty($archivo["tmp_name"]) || !file_exists($archivo["tmp_name"])) {
             throw new Exception("Archivo temporal no disponible");
         }
 
-        // ✅ Leer el archivo y convertir a base64
         $contenido = file_get_contents($archivo["tmp_name"]);
         $base64 = "data:" . $archivo["type"] . ";base64," . base64_encode($contenido);
 
-        // ✅ Subir a Cloudinary
         $upload = (new UploadApi())->upload($base64, [
             'folder' => 'comprobantes'
         ]);
 
         $urlComprobante = $upload['secure_url'];
 
-        // ✅ Guardar en la base de datos
         $stmt = $conexion->prepare("INSERT INTO comprobantes (id_pedido, monto, imagen) VALUES (?, ?, ?)");
         $stmt->bind_param("ids", $id_pedido, $monto, $urlComprobante);
 
