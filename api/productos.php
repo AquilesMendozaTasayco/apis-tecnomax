@@ -1,7 +1,7 @@
 <?php
 $allowed_origins = [
     "http://localhost:5173",
-    "https://tecnomax-ecommerce.vercel.app/",
+    "https://tecnomax-ecommerce.vercel.app",
     "https://tecnomax.netlify.app" 
 ];
 
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once "../config/db.php";
-require_once "../config/cloudinary.php"; // 👈 agregado para usar Cloudinary
+require_once "../config/cloudinary.php"; 
 
 use Cloudinary\Api\Upload\UploadApi;
 
