@@ -1,7 +1,7 @@
 <?php
 $allowed_origins = [
     "http://localhost:5173",
-    "https://tecnomax-ecommerce-b7ut.vercel.app",
+    "https://tecnomax-ecommerce.vercel.app/",
     "https://tecnomax.netlify.app" 
 ];
 
