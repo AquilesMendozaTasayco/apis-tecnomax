@@ -17,16 +17,15 @@ use Cloudinary\Api\Upload\UploadApi;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_pedido = $_POST['id_pedido'] ?? null;
     $monto = $_POST['monto'] ?? null;
-    $archivo = $_FILES['comprobante'] ?? null;
+if (!$id_pedido || !$archivo || $archivo['error'] !== UPLOAD_ERR_OK) {
+    echo json_encode([
+        "success" => false,
+        "mensaje" => "Archivo temporal no disponible o inválido",
+        "debug" => $_FILES
+    ]);
+    exit;
+}
 
-    if (!$id_pedido || !$archivo) {
-        echo json_encode([
-            "success" => false,
-            "mensaje" => "Faltan datos requeridos",
-            "debug" => $_FILES
-        ]);
-        exit;
-    }
 
     try {
         // Verificamos si hay archivo temporal
